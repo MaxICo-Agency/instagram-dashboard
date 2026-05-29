@@ -1,9 +1,4 @@
-export type MediaProductType =
-  | "FEED"
-  | "REELS"
-  | "STORY"
-  | "CAROUSEL_ALBUM"
-  | "AD";
+export type MediaProductType = "FEED" | "REELS" | "STORY" | "CAROUSEL_ALBUM" | "AD";
 
 export interface IgProfile {
   id: string;
@@ -26,7 +21,6 @@ export interface IgMedia {
   thumbnailUrl?: string;
   likeCount: number;
   commentsCount: number;
-  // best-effort insights (present only with insights scope / sample)
   reach?: number;
   views?: number;
   saved?: number;
@@ -35,20 +29,12 @@ export interface IgMedia {
   reelsAvgWatchTimeMs?: number;
 }
 
-export interface TrendPoint {
+export interface FollowerDay {
   date: string; // YYYY-MM-DD
-  reach?: number;
-  views?: number;
-  followers?: number;
-}
-
-export interface AccountInsights {
-  reach30d?: number;
-  views30d?: number;
-  accountsEngaged?: number;
-  totalInteractions?: number;
-  profileLinksTaps?: number;
-  series?: TrendPoint[];
+  followers: number;
+  gained: number;
+  reelPublished: boolean;
+  reelViews?: number;
 }
 
 export interface Bucket {
@@ -60,35 +46,75 @@ export interface Demographics {
   gender?: Bucket[];
   age?: Bucket[];
   country?: Bucket[];
+  cities?: Bucket[];
 }
 
 export interface DashboardData {
   live: boolean;
-  fetchedAt: string; // ISO
+  fetchedAt: string;
   notice?: string;
   profile: IgProfile;
   media: IgMedia[];
-  insights: AccountInsights;
+  followerSeries: FollowerDay[];
   demographics: Demographics;
 }
 
+export interface ScatterPoint {
+  views: number;
+  gained: number;
+  date: string;
+  caption?: string;
+}
+
+export interface Analytics {
+  kpis: {
+    reels: number;
+    posts: number;
+    totalViews: number;
+    totalReach: number;
+    avgViews: number;
+    avgER: number;
+    totalSaves: number;
+    totalShares: number;
+    totalLikes: number;
+    followers: number;
+    followerGrowth30d: number;
+    followerGrowthPct30d: number;
+    avgSaveRate: number;
+    avgShareRate: number;
+    profileLinkTaps: number;
+  };
+  topByViews: IgMedia[];
+  topByER: IgMedia[];
+  viewsOverTime: { date: string; views: number }[];
+  savesVsShares: { label: string; saves: number; shares: number }[];
+  weekday: { day: string; avgViews: number; count: number; best: boolean }[];
+  monthly: { month: string; avgViews: number; avgER: number }[];
+  distribution: Bucket[];
+  viewsTrend: { date: string; views: number; ma: number }[];
+  topSaved: IgMedia[];
+  topShared: IgMedia[];
+  scatter: ScatterPoint[];
+  bestDay: string;
+  bestHour: string;
+  bestFormat: string;
+  postsPerWeek: number;
+}
+
+// Compact subset handed to the LLM for recommendations.
 export interface Signals {
   followers: number;
   followerGrowth30d: number;
   followerGrowthPct30d: number;
-  reach30d?: number;
-  views30d?: number;
-  engagementRatePct: number;
-  avgInteractionsPerPost: number;
+  totalViews: number;
+  avgViews: number;
+  avgER: number;
+  avgSaveRate: number;
+  avgShareRate: number;
   bestFormat: string;
-  bestFormatAvgInteractions: number;
   bestDay: string;
   bestHour: string;
   postsPerWeek: number;
   topPostCaption?: string;
-  topPostInteractions?: number;
-  topPostType?: string;
-  reelsAvgWatchSec?: number;
-  storyCompletionPct?: number;
-  profileLinkTaps?: number;
+  topPostViews?: number;
 }

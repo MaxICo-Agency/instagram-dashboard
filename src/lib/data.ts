@@ -1,11 +1,12 @@
-import { computeSignals } from "./analytics";
+import { computeAnalytics, computeSignals } from "./analytics";
 import { fetchLive, getLastError } from "./ig";
 import { getRecommendations } from "./recommend";
 import { buildSample } from "./sample";
-import type { DashboardData, Signals } from "./types";
+import type { Analytics, DashboardData, Signals } from "./types";
 
 export interface DashboardBundle {
   data: DashboardData;
+  analytics: Analytics;
   signals: Signals;
   recommendations: string;
   demo: boolean;
@@ -19,27 +20,19 @@ export function resetCache() {
 }
 
 export async function getDashboard(force = false): Promise<DashboardBundle> {
-  if (!force && cache && Date.now() - cache.ts < TTL_MS) {
-    return cache.bundle;
-  }
+  if (!force && cache && Date.now() - cache.ts < TTL_MS) return cache.bundle;
 
   let data = await fetchLive();
   if (!data) {
     const err = getLastError();
-    const notice = err
-      ? `Демо-дані. Живий API недоступний: ${err}`
-      : undefined;
-    data = buildSample(notice);
+    data = buildSample(err ? `Демо-дані @max_shapoval. Живий API недоступний: ${err}` : undefined);
   }
 
-  const signals = computeSignals(data);
+  const analytics = computeAnalytics(data);
+  const signals = computeSignals(analytics);
   const recommendations = await getRecommendations(signals);
-  const bundle: DashboardBundle = {
-    data,
-    signals,
-    recommendations,
-    demo: !data.live,
-  };
+
+  const bundle: DashboardBundle = { data, analytics, signals, recommendations, demo: !data.live };
   cache = { bundle, ts: Date.now() };
   return bundle;
 }

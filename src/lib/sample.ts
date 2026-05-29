@@ -1,6 +1,5 @@
-import type { DashboardData, IgMedia, TrendPoint } from "./types";
+import type { DashboardData, FollowerDay, IgMedia } from "./types";
 
-// Deterministic seeded pseudo-random so charts look real and stable across reloads.
 function seeded(seed: number) {
   let s = seed >>> 0;
   return () => {
@@ -8,59 +7,92 @@ function seeded(seed: number) {
     return s / 0xffffffff;
   };
 }
-
-const rnd = seeded(20260529);
+const rnd = seeded(778899);
 
 const CAPTIONS = [
-  "Реальні історії пацієнтів: -38 кг за 7 місяців 💚",
-  "Що таке гастрошунтування простими словами",
-  "5 міфів про баріатрію, у які досі вірять",
-  "Питання-відповідь з хірургом у прямому ефірі",
-  "Як змінюється життя після операції: рік потому",
-  "Чек-лист підготовки до консультації",
-  "Харчування в перший місяць: гайд",
-  "Розбір аналізів: на що дивитися",
-  "До/після: історія Олени",
-  "Безкоштовний скринінг ІМТ — як записатися",
-  "Топ-3 запитання від підписників цього тижня",
-  "Міні-влог з клініки: один день хірурга",
-  "Чому важлива підтримка психолога",
-  "Результати команди за квартал — дякуємо вам!",
+  "Як ми зробили x4 ROAS клієнту за 30 днів",
+  "3 помилки в Meta Ads, які зливають твій бюджет",
+  "Чому твій креатив не залітає (і як це виправити)",
+  "Розбір воронки: від кліку до продажу",
+  "AI у таргеті: що реально працює у 2026",
+  "Скільки коштує лід у ніші б'юті — реальні цифри",
+  "Контент-стратегія, яка приносить заявки",
+  "Як читати рекламний кабінет за 5 хвилин",
+  "Performance vs Branding: куди вкладати гроші",
+  "Зробив рекламу сам — втратив $2000. Розбір",
+  "Топ-5 хуків для Reels, що працюють",
+  "Як масштабувати кампанію без падіння ROAS",
+  "UGC проти студійних відео: що конвертить краще",
+  "Ретаргет, який повертає 40% клієнтів",
+  "Чому CPM росте і що з цим робити",
+  "Моя щоденна рутина медіабаєра",
+  "Як ми знизили CPL удвічі за тиждень",
+  "Помилка №1 початківця в Google Ads",
+  "Креатив за 10 хвилин у нейромережі",
+  "Що таке MER і чому це головна метрика",
+  "Аудиторії, які реально працюють у 2026",
+  "Як писати оффер, від якого не відмовляться",
+  "Розбір реклами конкурента: що вони роблять не так",
+  "Прогрів аудиторії через сторіс: схема",
+  "Скільки реально заробляє агенція",
+  "Автоматизація звітів для клієнтів",
+  "Як ми тестуємо 50 креативів за день",
+  "Чому дешеві ліди — це пастка",
+  "Воронка для інфопродукту з нуля",
+  "Як рахувати юніт-економіку реклами",
+  "Тренди в SMM, які злетять цього року",
+  "Реклама в Telegram Ads: перші результати",
+  "Як зібрати команду перформанс-маркетингу",
+  "Розбір кейсу: -60% ціни ліда",
+  "Чому ваш сайт не продає (аудит за 3 хвилини)",
+  "Найкращий час для публікації Reels",
+  "AI-аватар веде мій акаунт — як це працює",
+  "5 інструментів, без яких я не запускаю рекламу",
+  "Як перетворити підписника на клієнта",
+  "Підсумки місяця: цифри агенції відкрито",
 ];
 
-const TYPES: { mt: string; pt: IgMedia["mediaProductType"] }[] = [
-  { mt: "VIDEO", pt: "REELS" },
-  { mt: "IMAGE", pt: "FEED" },
-  { mt: "CAROUSEL_ALBUM", pt: "CAROUSEL_ALBUM" },
-  { mt: "VIDEO", pt: "REELS" },
-  { mt: "IMAGE", pt: "FEED" },
-  { mt: "CAROUSEL_ALBUM", pt: "CAROUSEL_ALBUM" },
+const FORMATS: { mt: string; pt: IgMedia["mediaProductType"]; w: number }[] = [
+  { mt: "VIDEO", pt: "REELS", w: 0.7 },
+  { mt: "CAROUSEL_ALBUM", pt: "CAROUSEL_ALBUM", w: 0.2 },
+  { mt: "IMAGE", pt: "FEED", w: 0.1 },
 ];
+
+function pickFormat(r: number): { mt: string; pt: IgMedia["mediaProductType"] } {
+  let acc = 0;
+  for (const f of FORMATS) {
+    acc += f.w;
+    if (r <= acc) return { mt: f.mt, pt: f.pt };
+  }
+  return FORMATS[0];
+}
 
 function buildMedia(): IgMedia[] {
   const now = Date.now();
   const out: IgMedia[] = [];
   for (let i = 0; i < CAPTIONS.length; i++) {
-    const t = TYPES[i % TYPES.length];
-    const isReel = t.pt === "REELS";
-    const ageDays = Math.round(i * 2.1 + rnd() * 1.5);
-    const ts = new Date(now - ageDays * 86400000 - Math.floor(rnd() * 6) * 3600000);
-    const reachBase = isReel ? 7000 : 3200;
-    const reach = Math.round(reachBase + rnd() * (isReel ? 9000 : 3500));
-    const views = isReel ? Math.round(reach * (1.6 + rnd() * 1.2)) : Math.round(reach * (1.05 + rnd() * 0.2));
-    const likeCount = Math.round(reach * (0.04 + rnd() * 0.05));
-    const commentsCount = Math.round(likeCount * (0.06 + rnd() * 0.08));
-    const saved = Math.round(likeCount * (0.18 + rnd() * 0.22));
-    const shares = Math.round(likeCount * (0.12 + rnd() * 0.18));
+    const f = pickFormat(rnd());
+    const isReel = f.pt === "REELS";
+    const ageDays = Math.round(2 + i * 2.2 + rnd() * 1.4); // spread over ~90 days
+    const ts = new Date(now - ageDays * 86400000 - Math.floor(rnd() * 9) * 3600000);
+    const hot = rnd() < 0.2; // some viral
+    const reach = Math.round((isReel ? 9000 : 4200) + rnd() * (isReel ? 22000 : 7000) + (hot ? 30000 : 0));
+    const views = isReel
+      ? Math.round(reach * (1.5 + rnd() * 1.6))
+      : Math.round(reach * (1.02 + rnd() * 0.18));
+    const likeCount = Math.round(views * (0.03 + rnd() * 0.04));
+    const commentsCount = Math.round(likeCount * (0.05 + rnd() * 0.09));
+    const saved = Math.round(views * (0.012 + rnd() * 0.03));
+    const shares = Math.round(views * (0.008 + rnd() * 0.025));
     const totalInteractions = likeCount + commentsCount + saved + shares;
     out.push({
-      id: `sample_${i}`,
+      id: `s_${i}`,
       caption: CAPTIONS[i],
-      mediaType: t.mt,
-      mediaProductType: t.pt,
-      permalink: "https://instagram.com/maki.med.bariatric",
+      mediaType: f.mt,
+      mediaProductType: f.pt,
+      permalink: "https://instagram.com/max_shapoval",
       timestamp: ts.toISOString(),
-      thumbnailUrl: `https://picsum.photos/seed/makimed${i}/600/600`,
+      thumbnailUrl: `https://picsum.photos/seed/maxads${i}/600/600`,
       likeCount,
       commentsCount,
       reach,
@@ -68,23 +100,36 @@ function buildMedia(): IgMedia[] {
       saved,
       shares,
       totalInteractions,
-      reelsAvgWatchTimeMs: isReel ? Math.round(7000 + rnd() * 11000) : undefined,
+      reelsAvgWatchTimeMs: isReel ? Math.round(6500 + rnd() * 14000) : undefined,
     });
   }
   return out;
 }
 
-function buildSeries(): TrendPoint[] {
-  const series: TrendPoint[] = [];
-  let followers = 17820;
-  for (let d = 29; d >= 0; d--) {
-    const day = new Date(Date.now() - d * 86400000);
-    followers += Math.round(8 + rnd() * 32 - (rnd() < 0.15 ? rnd() * 18 : 0));
+function buildFollowerSeries(media: IgMedia[]): FollowerDay[] {
+  const days = 90;
+  const series: FollowerDay[] = [];
+  const byDate = new Map<string, IgMedia>();
+  for (const m of media) {
+    const d = m.timestamp.slice(0, 10);
+    if (m.mediaProductType === "REELS") byDate.set(d, m);
+  }
+  let followers = 22050;
+  for (let i = days - 1; i >= 0; i--) {
+    const day = new Date(Date.now() - i * 86400000);
+    const date = day.toISOString().slice(0, 10);
+    const reel = byDate.get(date);
+    const base = 12 + rnd() * 28;
+    const boost = reel ? Math.round((reel.views ?? 0) / 900) : 0;
+    const dip = rnd() < 0.12 ? Math.round(rnd() * 22) : 0;
+    const gained = Math.round(base + boost - dip);
+    followers += gained;
     series.push({
-      date: day.toISOString().slice(0, 10),
-      reach: Math.round(2400 + rnd() * 5200),
-      views: Math.round(3600 + rnd() * 8200),
+      date,
       followers,
+      gained,
+      reelPublished: Boolean(reel),
+      reelViews: reel?.views,
     });
   }
   return series;
@@ -92,53 +137,50 @@ function buildSeries(): TrendPoint[] {
 
 export function buildSample(notice?: string): DashboardData {
   const media = buildMedia();
-  const series = buildSeries();
-  const reach30d = series.reduce((a, p) => a + (p.reach ?? 0), 0);
-  const views30d = series.reduce((a, p) => a + (p.views ?? 0), 0);
-  const totalInteractions = media.reduce((a, m) => a + (m.totalInteractions ?? 0), 0);
-  const followers = series[series.length - 1].followers ?? 18420;
-
+  const followerSeries = buildFollowerSeries(media);
+  const followers = followerSeries[followerSeries.length - 1].followers;
   return {
     live: false,
     fetchedAt: new Date().toISOString(),
-    notice: notice ?? "Демо-дані. Підключи живий токен у .env.local, щоб бачити реальну аналітику.",
+    notice: notice ?? "Демо-дані акаунта @max_shapoval. Підключи живий токен у .env.local для реальних цифр.",
     profile: {
-      id: "17841400000000000",
-      username: "maki.med.bariatric",
-      name: "MaKi-Мед · Баріатрія",
-      biography: "Клініка баріатричної хірургії. Зниження ваги під контролем лікарів. Консультація → запис у Direct.",
-      profilePictureUrl: "https://picsum.photos/seed/makimedavatar/200/200",
+      id: "17841401234567890",
+      username: "max_shapoval",
+      name: "Max Shapoval",
+      biography:
+        "Засновник MaxIco Agency · Performance-маркетинг UA/US · Реклама, AI та зростання бізнесу · Кейси та цифри відкрито",
+      profilePictureUrl: "/avatar.png",
       followersCount: followers,
-      followsCount: 312,
-      mediaCount: 487,
+      followsCount: 547,
+      mediaCount: 312,
     },
     media,
-    insights: {
-      reach30d,
-      views30d,
-      accountsEngaged: Math.round(reach30d * 0.071),
-      totalInteractions,
-      profileLinksTaps: Math.round(reach30d * 0.018),
-      series,
-    },
+    followerSeries,
     demographics: {
       gender: [
-        { label: "Жінки", value: 79 },
-        { label: "Чоловіки", value: 21 },
+        { label: "Чоловіки", value: 63 },
+        { label: "Жінки", value: 37 },
       ],
       age: [
-        { label: "18–24", value: 9 },
-        { label: "25–34", value: 31 },
-        { label: "35–44", value: 34 },
-        { label: "45–54", value: 18 },
-        { label: "55+", value: 8 },
+        { label: "18–24", value: 14 },
+        { label: "25–34", value: 46 },
+        { label: "35–44", value: 27 },
+        { label: "45–54", value: 9 },
+        { label: "55+", value: 4 },
       ],
       country: [
-        { label: "Україна", value: 68 },
-        { label: "Польща", value: 12 },
+        { label: "Україна", value: 58 },
+        { label: "Польща", value: 11 },
+        { label: "США", value: 10 },
         { label: "Німеччина", value: 7 },
-        { label: "Чехія", value: 5 },
-        { label: "США", value: 4 },
+        { label: "Канада", value: 5 },
+      ],
+      cities: [
+        { label: "Київ", value: 24 },
+        { label: "Львів", value: 11 },
+        { label: "Варшава", value: 8 },
+        { label: "Дніпро", value: 6 },
+        { label: "Одеса", value: 5 },
       ],
     },
   };

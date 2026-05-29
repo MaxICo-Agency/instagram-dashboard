@@ -5,14 +5,12 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin", "cyrillic"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "IG Pulse · MaxIco",
-  description: "Instagram-аналітика та AI-рекомендації для акаунта.",
+  title: "Instagram Dashboard · MaxIco",
+  description: "Аналітика Instagram (Reels, охоплення, аудиторія) та AI-рекомендації українською.",
   robots: { index: false, follow: false },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="uk">
       <body className={inter.className}>{children}</body>

@@ -3,69 +3,40 @@ import type { Signals } from "./types";
 const OPENAI_KEY = process.env.OPENAI_API_KEY || "";
 const MODEL = process.env.OPENAI_MODEL || "gpt-4.1";
 
-function pct(n: number): string {
-  return `${n.toFixed(1)}%`;
-}
-
-// Deterministic fallback used when OpenAI is unavailable — always non-empty.
 export function ruleBasedNarrative(s: Signals): string {
-  const lines: string[] = [];
-  lines.push("## Контент");
-  lines.push(
-    `- Середня залученість поста — **${Math.round(s.avgInteractionsPerPost)}** взаємодій (ER ≈ **${pct(s.engagementRatePct)}**). ${
-      s.engagementRatePct >= 3
-        ? "Це сильний показник — масштабуй те, що працює."
-        : "Цілься в 3%+ : більше збережень і поширень через корисні гайди/чеклісти."
+  const L: string[] = [];
+  L.push("## Контент");
+  L.push(
+    `- Середній перегляд — **${Math.round(s.avgViews).toLocaleString("uk-UA")}**, ER ≈ **${s.avgER}%**. ${
+      s.avgER >= 5 ? "Сильно — масштабуй робочі теми." : "Цілься в 5%+: більше користі, збережень і поширень."
     }`,
   );
-  if (s.topPostCaption) {
-    lines.push(
-      `- Найкращий пост: «${s.topPostCaption}» (${s.topPostInteractions} взаємодій, ${s.topPostType}). Зроби продовження/серію на цю тему.`,
-    );
-  }
-  lines.push("## Формат");
-  lines.push(
-    `- Найрезультативніший формат — **${s.bestFormat}** (≈${Math.round(
-      s.bestFormatAvgInteractions,
-    )} взаємодій/пост). Зміщуй контент-план у його бік.`,
-  );
-  if (s.reelsAvgWatchSec) {
-    lines.push(
-      `- Середній час перегляду Reels — **${s.reelsAvgWatchSec.toFixed(1)} с**. Підсилюй гачок у перші 3 секунди, щоб зменшити skip-rate.`,
-    );
-  }
-  lines.push("## Час публікацій");
-  lines.push(
-    `- Найкращий слот — **${s.bestDay}, ${s.bestHour}**. Плануй ключові пости на цей час; постингу зараз ≈ **${s.postsPerWeek.toFixed(
-      1,
-    )}/тиждень**.`,
-  );
-  lines.push("## Аудиторія");
-  lines.push(
-    `- Приріст за 30 днів — **${s.followerGrowth30d >= 0 ? "+" : ""}${s.followerGrowth30d}** (${pct(
-      s.followerGrowthPct30d,
-    )}). ${
-      s.followerGrowth30d > 0
-        ? "Тренд позитивний — підтримуй каденс і CTA на підписку."
-        : "Додай CTA на підписку та колаборації для нового охоплення."
+  if (s.topPostCaption)
+    L.push(`- Найкраще зайшло: «${s.topPostCaption}» (${(s.topPostViews ?? 0).toLocaleString("uk-UA")} переглядів). Зроби серію на цю тему.`);
+  L.push("## Формат");
+  L.push(`- Найрезультативніший формат — **${s.bestFormat}**. Зміщуй контент-план у його бік.`);
+  L.push(`- Save-rate **${s.avgSaveRate}%**, share-rate **${s.avgShareRate}%** — підсилюй корисні гайди/чеклісти, що зберігають.`);
+  L.push("## Час публікацій");
+  L.push(`- Найкращий слот — **${s.bestDay}, ${s.bestHour}**. Постингу зараз ≈ **${s.postsPerWeek}/тиждень**.`);
+  L.push("## Аудиторія");
+  L.push(
+    `- Приріст за 30 днів — **${s.followerGrowth30d >= 0 ? "+" : ""}${s.followerGrowth30d}** (${s.followerGrowthPct30d}%). ${
+      s.followerGrowth30d > 0 ? "Тримай каденс і CTA на підписку." : "Додай CTA та колаборації для нового охоплення."
     }`,
   );
-  if (typeof s.profileLinkTaps === "number") {
-    lines.push(
-      `- Тапів по посиланнях у профілі — **${s.profileLinkTaps}**. Тестуй чіткіший заклик у біо та в підписах.`,
-    );
-  }
-  return lines.join("\n");
+  L.push("## Stories");
+  L.push("- Дублюй найкращі Reels у Stories з опитуваннями/CTA — це додає охоплення й тапи в профіль.");
+  return L.join("\n");
 }
 
 function buildPrompt(s: Signals): string {
   return [
-    "Ти — стратег Instagram-маркетингу агенції MaxIco. На основі метрик аккаунта напиши стислі, конкретні рекомендації УКРАЇНСЬКОЮ.",
-    "Формат: Markdown, рівно 5 секцій з заголовками `## Контент`, `## Формат`, `## Час публікацій`, `## Аудиторія`, `## Stories`.",
-    "У кожній секції 2–3 пункти-булети. Кожен пункт спирається на конкретне число з даних і дає дію. Без вступів і висновків. Жирним виділяй ключові цифри.",
+    "Ти — стратег Instagram-маркетингу агенції MaxIco. На основі метрик акаунта напиши стислі, конкретні рекомендації УКРАЇНСЬКОЮ.",
+    "Формат: Markdown, рівно 5 секцій: `## Контент`, `## Формат`, `## Час публікацій`, `## Аудиторія`, `## Stories`.",
+    "У кожній 2–3 булети. Кожен спирається на конкретне число з даних і дає дію. Жирним виділяй цифри. Без вступів і висновків.",
     "",
     "Дані (JSON):",
-    JSON.stringify(s, null, 0),
+    JSON.stringify(s),
   ].join("\n");
 }
 
@@ -74,14 +45,11 @@ export async function getRecommendations(s: Signals): Promise<string> {
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_KEY}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_KEY}` },
       body: JSON.stringify({
         model: MODEL,
         temperature: 0.5,
-        max_tokens: 700,
+        max_tokens: 750,
         messages: [
           { role: "system", content: "Ти досвідчений SMM-стратег. Пишеш стисло, по ділу, українською." },
           { role: "user", content: buildPrompt(s) },
@@ -92,7 +60,7 @@ export async function getRecommendations(s: Signals): Promise<string> {
     if (!res.ok) throw new Error(`OpenAI HTTP ${res.status}`);
     const json = await res.json();
     const text: string | undefined = json?.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error("empty completion");
+    if (!text) throw new Error("empty");
     return text;
   } catch {
     return ruleBasedNarrative(s);
