@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    image: inst-dashboard:latest
+    container_name: inst-dashboard-app
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=maxico-platform_public"
+      - "traefik.http.routers.instdash.rule=Host(`inst-dashbord.maxicolabs.com`)"
+      - "traefik.http.routers.instdash.entrypoints=websecure"
+      - "traefik.http.routers.instdash.tls.certresolver=le"
+      - "traefik.http.services.instdash.loadbalancer.server.port=3000"
+
+networks:
+  public:
+    external: true
+    name: maxico-platform_public
