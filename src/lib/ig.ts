@@ -1,8 +1,12 @@
 import type { DashboardData, Demographics, FollowerDay, IgMedia, IgProfile } from "./types";
 
-const HOST = "https://graph.instagram.com";
+// Works with both connection types:
+//  - Instagram Login:  IG_API_HOST=https://graph.instagram.com, node = "me"
+//  - Facebook Login:   IG_API_HOST=https://graph.facebook.com, IG_USER_ID = <ig-business-account-id>
+const HOST = process.env.IG_API_HOST || "https://graph.instagram.com";
 const V = process.env.IG_GRAPH_VERSION || "v21.0";
 const TOKEN = process.env.IG_ACCESS_TOKEN || "";
+const NODE = process.env.IG_USER_ID || "me";
 
 let lastError: string | null = null;
 export function getLastError() {
@@ -47,7 +51,7 @@ async function mediaInsightsSafe(id: string): Promise<Partial<IgMedia>> {
 
 async function followerSeriesSafe(media: IgMedia[]): Promise<FollowerDay[]> {
   try {
-    const r = await ig<{ data: { values: { value: number; end_time: string }[] }[] }>("me/insights", {
+    const r = await ig<{ data: { values: { value: number; end_time: string }[] }[] }>(`${NODE}/insights`, {
       metric: "follower_count",
       period: "day",
     });
@@ -74,11 +78,11 @@ export async function fetchLive(): Promise<DashboardData | null> {
     return null;
   }
   try {
-    const me = await ig<Record<string, unknown>>("me", {
-      fields: "user_id,username,name,biography,followers_count,follows_count,media_count,profile_picture_url",
+    const me = await ig<Record<string, unknown>>(NODE, {
+      fields: "id,username,name,biography,followers_count,follows_count,media_count,profile_picture_url",
     });
     const profile: IgProfile = {
-      id: String(me.user_id ?? me.id ?? ""),
+      id: String(me.id ?? NODE),
       username: String(me.username ?? ""),
       name: me.name as string | undefined,
       biography: me.biography as string | undefined,
@@ -88,7 +92,7 @@ export async function fetchLive(): Promise<DashboardData | null> {
       mediaCount: Number(me.media_count ?? 0),
     };
 
-    const mediaRes = await ig<{ data: Record<string, unknown>[] }>("me/media", {
+    const mediaRes = await ig<{ data: Record<string, unknown>[] }>(`${NODE}/media`, {
       fields:
         "id,caption,media_type,media_product_type,permalink,timestamp,thumbnail_url,media_url,like_count,comments_count",
       limit: "30",
