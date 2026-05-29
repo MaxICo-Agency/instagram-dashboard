@@ -16,6 +16,7 @@ import {
 } from "./charts";
 import { ReelsTable } from "./ReelsTable";
 import { RefreshButton } from "./RefreshButton";
+import { LogoutButton } from "./LogoutButton";
 import {
   Card,
   DemoBanner,
@@ -51,7 +52,7 @@ export function Dashboard({
   const topER = analytics.topByER.slice(0, 12).map((m) => ({ label: cap(m.caption, 26), value: Number(er(m).toFixed(1)) }));
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
       <header className="mb-5 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -62,14 +63,16 @@ export function Dashboard({
             {new Date(data.fetchedAt).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {demo ? "демо-дані" : "живі дані"}
           </p>
         </div>
-        <RefreshButton />
+        <div className="flex items-center gap-2">
+          <RefreshButton />
+          <LogoutButton />
+        </div>
       </header>
 
       <div className="flex flex-col gap-4">
         {demo && <DemoBanner notice={data.notice} />}
         <ProfileHeader profile={data.profile} />
 
-        {/* tabs */}
         <nav className="flex flex-wrap gap-1.5">
           {TABS.map((t) => (
             <button
@@ -139,33 +142,31 @@ export function Dashboard({
         )}
 
         {tab === "Інсайти" && (
-          <>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <Card title="Сер. перегляди за днем тижня" subtitle="лаймом — найкращий день">
-                <WeekdayBars data={analytics.weekday} />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card title="Сер. перегляди за днем тижня" subtitle="лаймом — найкращий день">
+              <WeekdayBars data={analytics.weekday} />
+            </Card>
+            <Card title="Місячна динаміка" subtitle="сер. перегляди + ER%">
+              <MonthlyTrend data={analytics.monthly} />
+            </Card>
+            <Card title="Збереження vs Поширення" subtitle="топ публікації">
+              <SavesShares data={analytics.savesVsShares.slice(0, 12)} />
+            </Card>
+            <Card title="Розподіл за переглядами">
+              <DistBars data={analytics.distribution} />
+            </Card>
+            <Card title="Топ за ER%">
+              <HBars data={topER} color="#b8f700" height={300} />
+            </Card>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Card title="Найбільше збережень">
+                <MediaMiniList media={analytics.topSaved} metric="saved" />
               </Card>
-              <Card title="Місячна динаміка" subtitle="сер. перегляди + ER%">
-                <MonthlyTrend data={analytics.monthly} />
+              <Card title="Найбільше поширень">
+                <MediaMiniList media={analytics.topShared} metric="shares" />
               </Card>
-              <Card title="Збереження vs Поширення" subtitle="топ публікації">
-                <SavesShares data={analytics.savesVsShares.slice(0, 12)} />
-              </Card>
-              <Card title="Розподіл за переглядами">
-                <DistBars data={analytics.distribution} />
-              </Card>
-              <Card title="Топ за ER%">
-                <HBars data={topER} color="#b8f700" height={300} />
-              </Card>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Card title="Найбільше збережень">
-                  <MediaMiniList media={analytics.topSaved} metric="saved" />
-                </Card>
-                <Card title="Найбільше поширень">
-                  <MediaMiniList media={analytics.topShared} metric="shares" />
-                </Card>
-              </div>
             </div>
-          </>
+          </div>
         )}
 
         {tab === "Аудиторія" && (
@@ -186,10 +187,6 @@ export function Dashboard({
             <Recommendations markdown={recommendations} />
           </Card>
         )}
-
-        <footer className="py-4 text-center text-xs text-muted">
-          Instagram Dashboard · MaxIco Agency · кращий слот: {analytics.bestDay}, {analytics.bestHour}
-        </footer>
       </div>
     </main>
   );
