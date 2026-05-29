@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-maxico-blue: #0d04b7;
+  --color-maxico-lime: #b8f700;
+  --color-ink: #08080d;
+  --color-surface: #14141d;
+  --color-surface-2: #1b1b27;
+  --color-line: #2a2a3a;
+  --color-muted: #9a9ab0;
+}
+
+html,
+body {
+  background-color: var(--color-ink);
+  color: #f4f4f8;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-image:
+    radial-gradient(1100px 500px at 12% -8%, rgba(13, 4, 183, 0.28), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(184, 247, 0, 0.06), transparent 55%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: var(--color-maxico-lime);
+  color: #08080d;
+}
