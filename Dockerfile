@@ -1,10 +1,12 @@
 # Instagram Dashboard — Next.js standalone image
+# pnpm pinned to 9.x (matches the committed lockfile; avoids pnpm 10's
+# supply-chain lockfile policy that blocks freshly-published transitive deps).
 FROM node:22-alpine AS base
-RUN corepack enable
+RUN npm i -g pnpm@9.12.0
 
 FROM base AS deps
 WORKDIR /app
-COPY package.json pnpm-lock.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 FROM base AS build
