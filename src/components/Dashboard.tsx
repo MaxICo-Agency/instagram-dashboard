@@ -14,10 +14,9 @@ import { Settings } from "./Settings";
 import { Generator } from "./Generator";
 import { PatternsView } from "./Patterns";
 import { Scripts } from "./Scripts";
+import { OverviewPeriod } from "./OverviewPeriod";
 import { TopMediaList } from "./TopMediaList";
-import {
-  Card, DemoBanner, DemographicsBlocks, Kpi, MediaMiniList, ProfileHeader, Recommendations, StatStrip,
-} from "./ui";
+import { Card, DemoBanner, DemographicsBlocks, Kpi, MediaMiniList, ProfileHeader, Recommendations, StatStrip } from "./ui";
 
 const TABS = ["Огляд", "Публікації", "Підписники", "Інсайти", "Паттерни", "Скрипти", "Генератор", "Аудиторія", "AI-поради"] as const;
 type Tab = (typeof TABS)[number];
@@ -74,16 +73,7 @@ export function Dashboard({
 
         {tab === "Огляд" && (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Kpi label="Reels" value={formatNumber(k.reels)} sub={`+${k.posts} інших`} />
-              <Kpi label="Σ Перегляди" value={formatNumber(k.totalViews)} />
-              <Kpi label="Σ Охоплення" value={formatNumber(k.totalReach)} />
-              <Kpi label="Сер. перегляди" value={formatNumber(k.avgViews)} />
-              <Kpi label="Сер. ER" value={`${k.avgER}%`} />
-              <Kpi label="Σ Збереження" value={formatNumber(k.totalSaves)} />
-              <Kpi label="Σ Поширення" value={formatNumber(k.totalShares)} />
-              <Kpi label="Підписники" value={formatNumber(k.followers)} sub={`+${k.followerGrowth30d} / 30д`} positive={k.followerGrowth30d >= 0} />
-            </div>
+            <OverviewPeriod media={data.media} />
             <StatStrip
               items={[
                 { label: "Кращий день", value: analytics.bestDay },
@@ -128,21 +118,11 @@ export function Dashboard({
 
         {tab === "Інсайти" && (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card title="Сер. перегляди за днем тижня" subtitle="лаймом — найкращий день">
-              <WeekdayBars data={analytics.weekday} />
-            </Card>
-            <Card title="Місячна динаміка" subtitle="сер. перегляди + ER%">
-              <MonthlyTrend data={analytics.monthly} />
-            </Card>
-            <Card title="Збереження vs Поширення" subtitle="топ публікації">
-              <SavesShares data={analytics.savesVsShares.slice(0, 12)} />
-            </Card>
-            <Card title="Розподіл за переглядами">
-              <DistBars data={analytics.distribution} />
-            </Card>
-            <Card title="Топ за ER%" subtitle="клік — відкрити пост">
-              <TopMediaList media={analytics.topByER.slice(0, 8)} metric="er" />
-            </Card>
+            <Card title="Сер. перегляди за днем тижня" subtitle="лаймом — найкращий день"><WeekdayBars data={analytics.weekday} /></Card>
+            <Card title="Місячна динаміка" subtitle="сер. перегляди + ER%"><MonthlyTrend data={analytics.monthly} /></Card>
+            <Card title="Збереження vs Поширення" subtitle="топ публікації"><SavesShares data={analytics.savesVsShares.slice(0, 12)} /></Card>
+            <Card title="Розподіл за переглядами"><DistBars data={analytics.distribution} /></Card>
+            <Card title="Топ за ER%" subtitle="клік — відкрити пост"><TopMediaList media={analytics.topByER.slice(0, 8)} metric="er" /></Card>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Card title="Найбільше збережень"><MediaMiniList media={analytics.topSaved} metric="saved" /></Card>
               <Card title="Найбільше поширень"><MediaMiniList media={analytics.topShared} metric="shares" /></Card>
@@ -151,24 +131,18 @@ export function Dashboard({
         )}
 
         {tab === "Паттерни" && <PatternsView patterns={patterns} />}
-
         {tab === "Скрипти" && <Scripts media={data.media} />}
-
         {tab === "Генератор" && <Generator />}
 
         {tab === "Аудиторія" && (
           <>
             <Card title="Демографія аудиторії"><DemographicsBlocks demographics={data.demographics} /></Card>
-            {data.demographics.age && (
-              <Card title="Вік аудиторії"><BucketBars data={data.demographics.age} /></Card>
-            )}
+            {data.demographics.age && <Card title="Вік аудиторії"><BucketBars data={data.demographics.age} /></Card>}
           </>
         )}
 
         {tab === "AI-поради" && (
-          <Card title="AI-рекомендації" subtitle="OpenAI на основі ваших метрик">
-            <Recommendations markdown={recommendations} />
-          </Card>
+          <Card title="AI-рекомендації" subtitle="OpenAI на основі ваших метрик"><Recommendations markdown={recommendations} /></Card>
         )}
       </div>
     </main>

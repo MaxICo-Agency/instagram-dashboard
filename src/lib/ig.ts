@@ -1,32 +1,29 @@
+import { getConfig, type AppConfig } from "./config";
 import { loadTranscripts } from "./transcripts";
 import type { Bucket, DashboardData, Demographics, FollowerDay, IgMedia, IgProfile } from "./types";
-
-const HOST = process.env.IG_API_HOST || "https://graph.instagram.com";
-const V = process.env.IG_GRAPH_VERSION || "v21.0";
-const TOKEN = process.env.IG_ACCESS_TOKEN || "";
-const NODE = process.env.IG_USER_ID || "me";
 
 let lastError: string | null = null;
 export function getLastError() {
   return lastError;
 }
-export function hasLiveConfig() {
-  return Boolean(TOKEN);
+export async function hasLiveConfig() {
+  return Boolean((await getConfig()).igToken);
 }
 
-async function ig<T = unknown>(path: string, params: Record<string, string> = {}): Promise<T> {
-  const url = new URL(`${HOST}/${V}/${path}`);
+async function igFetch<T = unknown>(cfg: AppConfig, path: string, params: Record<string, string> = {}): Promise<T> {
+  const url = new URL(`${cfg.igApiHost}/${cfg.igGraphVersion}/${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  url.searchParams.set("access_token", TOKEN);
+  url.searchParams.set("access_token", cfg.igToken);
   const res = await fetch(url.toString(), { cache: "no-store" });
   const json = await res.json();
   if (!res.ok || (json && json.error)) throw new Error(json?.error?.message || `HTTP ${res.status}`);
   return json as T;
 }
 
-async function mediaInsightsSafe(id: string): Promise<Partial<IgMedia>> {
+async function mediaInsightsSafe(cfg: AppConfig, id: string): Promise<Partial<IgMedia>> {
   try {
-    const r = await ig<{ data: { name: string; values?: { value: number }[]; total_value?: { value: number } }[] }>(
+    const r = await igFetch<{ data: { name: string; values?: { value: number }[]; total_value?: { value: number } }[] }>(
+      cfg,
       `${id}/insights`,
       { metric: "reach,views,saved,shares,total_interactions" },
     );
@@ -47,9 +44,9 @@ async function mediaInsightsSafe(id: string): Promise<Partial<IgMedia>> {
   }
 }
 
-async function followerSeriesSafe(media: IgMedia[]): Promise<FollowerDay[]> {
+async function followerSeriesSafe(cfg: AppConfig, node: string, media: IgMedia[]): Promise<FollowerDay[]> {
   try {
-    const r = await ig<{ data: { values: { value: number; end_time: string }[] }[] }>(`${NODE}/insights`, {
+    const r = await igFetch<{ data: { values: { value: number; end_time: string }[] }[] }>(cfg, `${node}/insights`, {
       metric: "follower_count",
       period: "day",
     });
@@ -68,9 +65,9 @@ async function followerSeriesSafe(media: IgMedia[]): Promise<FollowerDay[]> {
 }
 
 type DemoResult = { dimension_values: string[]; value: number };
-async function demographicBreakdown(breakdown: string): Promise<DemoResult[]> {
+async function demographicBreakdown(cfg: AppConfig, node: string, breakdown: string): Promise<DemoResult[]> {
   try {
-    const r = await ig<{ data: { total_value?: { breakdowns?: { results: DemoResult[] }[] } }[] }>(`${NODE}/insights`, {
+    const r = await igFetch<{ data: { total_value?: { breakdowns?: { results: DemoResult[] }[] } }[] }>(cfg, `${node}/insights`, {
       metric: "follower_demographics",
       period: "lifetime",
       metric_type: "total_value",
@@ -95,9 +92,10 @@ const COUNTRY_UA: Record<string, string> = {
   UA: "Україна", PL: "Польща", US: "США", DE: "Німеччина", GB: "Велика Британія",
   CA: "Канада", CZ: "Чехія", IT: "Італія", ES: "Іспанія", FR: "Франція", PT: "Португалія",
 };
-async function demographicsSafe(): Promise<Demographics> {
+async function demographicsSafe(cfg: AppConfig, node: string): Promise<Demographics> {
   const [g, a, c, ci] = await Promise.all([
-    demographicBreakdown("gender"), demographicBreakdown("age"), demographicBreakdown("country"), demographicBreakdown("city"),
+    demographicBreakdown(cfg, node, "gender"), demographicBreakdown(cfg, node, "age"),
+    demographicBreakdown(cfg, node, "country"), demographicBreakdown(cfg, node, "city"),
   ]);
   const known = g.filter((x) => x.dimension_values[0] === "F" || x.dimension_values[0] === "M");
   return {
@@ -110,16 +108,18 @@ async function demographicsSafe(): Promise<Demographics> {
 
 export async function fetchLive(): Promise<DashboardData | null> {
   lastError = null;
-  if (!TOKEN) {
+  const cfg = await getConfig();
+  const node = cfg.igUserId || "me";
+  if (!cfg.igToken) {
     lastError = "Токен не налаштовано (IG_ACCESS_TOKEN порожній).";
     return null;
   }
   try {
-    const me = await ig<Record<string, unknown>>(NODE, {
+    const me = await igFetch<Record<string, unknown>>(cfg, node, {
       fields: "id,username,name,biography,followers_count,follows_count,media_count,profile_picture_url",
     });
     const profile: IgProfile = {
-      id: String(me.id ?? NODE),
+      id: String(me.id ?? node),
       username: String(me.username ?? ""),
       name: me.name as string | undefined,
       biography: me.biography as string | undefined,
@@ -129,34 +129,33 @@ export async function fetchLive(): Promise<DashboardData | null> {
       mediaCount: Number(me.media_count ?? 0),
     };
 
-    const mediaRes = await ig<{ data: Record<string, unknown>[] }>(`${NODE}/media`, {
+    const mediaRes = await igFetch<{ data: Record<string, unknown>[] }>(cfg, `${node}/media`, {
       fields:
         "id,caption,media_type,media_product_type,permalink,timestamp,thumbnail_url,media_url,like_count,comments_count",
       limit: "30",
     });
-    const media: IgMedia[] = [];
-    for (const m of mediaRes.data || []) {
-      const item: IgMedia = {
-        id: String(m.id),
-        caption: m.caption as string | undefined,
-        mediaType: String(m.media_type ?? ""),
-        mediaProductType:
-          (m.media_product_type as IgMedia["mediaProductType"]) || (m.media_type as IgMedia["mediaProductType"]) || "FEED",
-        permalink: m.permalink as string | undefined,
-        timestamp: String(m.timestamp ?? new Date().toISOString()),
-        thumbnailUrl: (m.thumbnail_url as string) || (m.media_url as string) || undefined,
-        mediaUrl: m.media_type === "VIDEO" ? (m.media_url as string) : undefined,
-        likeCount: Number(m.like_count ?? 0),
-        commentsCount: Number(m.comments_count ?? 0),
-      };
-      Object.assign(item, await mediaInsightsSafe(item.id));
-      media.push(item);
-    }
+    const media: IgMedia[] = (mediaRes.data || []).map((m) => ({
+      id: String(m.id),
+      caption: m.caption as string | undefined,
+      mediaType: String(m.media_type ?? ""),
+      mediaProductType:
+        (m.media_product_type as IgMedia["mediaProductType"]) || (m.media_type as IgMedia["mediaProductType"]) || "FEED",
+      permalink: m.permalink as string | undefined,
+      timestamp: String(m.timestamp ?? new Date().toISOString()),
+      thumbnailUrl: (m.thumbnail_url as string) || (m.media_url as string) || undefined,
+      mediaUrl: m.media_type === "VIDEO" ? (m.media_url as string) : undefined,
+      likeCount: Number(m.like_count ?? 0),
+      commentsCount: Number(m.comments_count ?? 0),
+    }));
 
-    const transcripts = await loadTranscripts();
+    // Parallel: per-media insights + follower series + demographics + transcripts (big speed win).
+    const [, followerSeries, demographics, transcripts] = await Promise.all([
+      Promise.all(media.map(async (it) => Object.assign(it, await mediaInsightsSafe(cfg, it.id)))),
+      followerSeriesSafe(cfg, node, media),
+      demographicsSafe(cfg, node),
+      loadTranscripts(),
+    ]);
     for (const m of media) if (transcripts[m.id]) m.transcript = transcripts[m.id];
-
-    const [followerSeries, demographics] = await Promise.all([followerSeriesSafe(media), demographicsSafe()]);
 
     return {
       live: true,

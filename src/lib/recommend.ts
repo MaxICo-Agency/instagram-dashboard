@@ -1,7 +1,5 @@
+import { getConfig } from "./config";
 import type { Signals } from "./types";
-
-const OPENAI_KEY = process.env.OPENAI_API_KEY || "";
-const MODEL = process.env.OPENAI_MODEL || "gpt-4.1";
 
 export function ruleBasedNarrative(s: Signals): string {
   const L: string[] = [];
@@ -41,13 +39,14 @@ function buildPrompt(s: Signals): string {
 }
 
 export async function getRecommendations(s: Signals): Promise<string> {
-  if (!OPENAI_KEY) return ruleBasedNarrative(s);
+  const cfg = await getConfig();
+  if (!cfg.openaiKey) return ruleBasedNarrative(s);
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_KEY}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.openaiKey}` },
       body: JSON.stringify({
-        model: MODEL,
+        model: cfg.openaiModel,
         temperature: 0.5,
         max_tokens: 750,
         messages: [

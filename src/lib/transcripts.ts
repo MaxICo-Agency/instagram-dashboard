@@ -1,10 +1,10 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { getConfig } from "./config";
 import type { IgMedia } from "./types";
 
 const DATA_DIR = process.env.DATA_DIR || "/app/data";
 const FILE = path.join(DATA_DIR, "transcripts.json");
-const KEY = process.env.OPENAI_API_KEY || "";
 
 export type TranscriptMap = Record<string, string>;
 
@@ -21,7 +21,7 @@ async function saveTranscripts(map: TranscriptMap): Promise<void> {
   await fs.writeFile(FILE, JSON.stringify(map), "utf8");
 }
 
-async function transcribeOne(mediaUrl: string): Promise<string> {
+async function transcribeOne(key: string, mediaUrl: string): Promise<string> {
   const audio = await fetch(mediaUrl);
   if (!audio.ok) throw new Error(`download ${audio.status}`);
   const buf = await audio.arrayBuffer();
@@ -30,7 +30,7 @@ async function transcribeOne(mediaUrl: string): Promise<string> {
   fd.append("model", "whisper-1");
   const r = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${KEY}` },
+    headers: { Authorization: `Bearer ${key}` },
     body: fd,
   });
   const j = await r.json();
@@ -38,7 +38,6 @@ async function transcribeOne(mediaUrl: string): Promise<string> {
   return (j.text || "").trim();
 }
 
-// Module-level sync status (single-instance).
 let status = { running: false, total: 0, done: 0, error: "" as string, finishedAt: 0 };
 export function getTranscribeStatus() {
   return status;
@@ -46,8 +45,9 @@ export function getTranscribeStatus() {
 
 export async function runTranscription(reels: IgMedia[]): Promise<void> {
   if (status.running) return;
-  if (!KEY) {
-    status = { running: false, total: 0, done: 0, error: "Немає OPENAI_API_KEY", finishedAt: Date.now() };
+  const { openaiKey } = await getConfig();
+  if (!openaiKey) {
+    status = { running: false, total: 0, done: 0, error: "Немає OpenAI-ключа", finishedAt: Date.now() };
     return;
   }
   const map = await loadTranscripts();
@@ -55,7 +55,7 @@ export async function runTranscription(reels: IgMedia[]): Promise<void> {
   status = { running: true, total: todo.length, done: 0, error: "", finishedAt: 0 };
   for (const m of todo) {
     try {
-      map[m.id] = await transcribeOne(m.mediaUrl!);
+      map[m.id] = await transcribeOne(openaiKey, m.mediaUrl!);
     } catch (e) {
       map[m.id] = "";
       status.error = (e as Error).message;

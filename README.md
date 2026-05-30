@@ -1,97 +1,97 @@
+<!-- LANG -->
+**🇬🇧 English** · [🇺🇦 Українською](README.uk.md)
+
 # Instagram Dashboard
 
-**Аналітика Instagram + AI-рекомендації українською.** Reels, охоплення, залученість, приріст підписників, аудиторія та поради — в одному дашборді з адмін-входом. Зроблено в **[MaxICo Labs](https://maxicolabs.com/)**.
+A self-hosted **Instagram analytics dashboard with AI** — Reels performance, reach, engagement, follower growth, audience demographics, **Whisper transcripts**, speech-pattern analysis, and an **AI script generator** that writes in your own style. Admin login included. Built by **[MaxICo Labs](https://maxicolabs.com/)**.
 
-🔗 **Демо/прод:** https://inst-dashbord.maxicolabs.com
+🔗 **Live demo:** https://inst-dashbord.maxicolabs.com
 
-![Огляд](docs/screenshots/overview.png)
+![Overview](docs/screenshots/overview.png)
 
----
+## What it shows
 
-## 🤖 Для AI-агента (найшвидший шлях)
-
-Якщо ти запускаєш це через AI-агента (Claude, Cursor тощо) — **відкрий [`AGENTS.md`](AGENTS.md)**. Там покроковий онбординг: агент сам спитає «локально чи на сервер», встановить залежності, допоможе отримати токен і запустить. Людині достатньо віддати агенту цю папку і пройти інструкції.
-
----
-
-## Що показує
-
-| Вкладка | Вміст |
+| Tab | Content |
 |---|---|
-| **Огляд** | 8 KPI (Reels, Σ переглядів/охоплення, сер. перегляди, ER%, збереження, поширення, підписники), кращий день/час/формат, графік переглядів + ковзне середнє, топ за переглядами |
-| **Публікації** | Повна таблиця: пошук, фільтр за типом, сортування, мінібари переглядів, кольорові бейджі ER% |
-| **Підписники** | Приріст із відмітками днів Reels, кореляція «перегляди → приріст» |
-| **Інсайти** | За днем тижня, місячна динаміка, збереження vs поширення, розподіл, топ за ER%, найкращі за збереженнями/поширеннями |
-| **Аудиторія** | Стать, вік, країни, міста |
-| **AI-поради** | OpenAI `gpt-4.1` аналізує метрики й пише рекомендації українською |
+| **Огляд (Overview)** | KPIs with **period selector (7 / 30 / 90 days / all) and comparison vs the previous period**, best day/time/format, views trend, top posts (clickable) |
+| **Публікації (Posts)** | Full table: search, type filter, sorting, view bars, ER% badges, links to posts |
+| **Підписники (Followers)** | Daily growth with reel markers, views→gain correlation |
+| **Інсайти (Insights)** | By weekday, monthly trend, saves vs shares, distribution, top by ER% |
+| **Паттерни (Patterns)** | From Whisper transcripts: script length vs views, question-in-hook, casualness, magnet/save words |
+| **Скрипти (Scripts)** | Per-reel transcripts |
+| **Генератор (Generator)** | AI writes a Reel script in **your** style from your top transcripts + patterns |
+| **Аудиторія (Audience)** | Real demographics: gender, age, country, city |
+| **AI-поради** | LLM recommendations from your metrics |
 
-![Таблиця](docs/screenshots/table.png)
+## Tech / format
 
----
+Next.js 16 (App Router, TypeScript) · Tailwind CSS v4 · Recharts · OpenAI (chat + Whisper) · file persistence on a Docker volume. No external database.
 
-## Швидкий старт (локально)
+## Quick start (local)
 
 ```bash
-git clone <repo-url> instagram-dashboard
+git clone https://github.com/MaxICo-Agency/instagram-dashboard.git
 cd instagram-dashboard
-pnpm install                 # або npm install
-cp .env.example .env.local   # заповни (див. нижче)
+pnpm install                 # or npm install
+cp .env.example .env.local   # fill in (see below)
 pnpm dev                     # → http://localhost:3000
 ```
 
-Перший екран — **вхід** (логін/пароль із `.env.local`). Далі: якщо токен не задано і `IG_REQUIRE_LIVE` порожній — показуються демо-дані; якщо `IG_REQUIRE_LIVE=1` — екран підключення.
+First screen is the **admin login** (credentials from `.env.local`). Then either real data (if a token is set) or a connect screen.
 
-## Конфігурація `.env.local`
+## Configuration
+
+Set these in `.env.local` (local) / `.env` (server) — **or add them later from the in-app ⚙ Settings → API keys** (saved on the server, no redeploy):
 
 ```env
-# Адмін-вхід
+# Admin login
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=ваш_пароль
-AUTH_SECRET=випадковий_рядок        # openssl rand -hex 32
+ADMIN_PASSWORD=your_password
+AUTH_SECRET=random_string            # openssl rand -hex 32
 
 # Instagram API
-IG_ACCESS_TOKEN=                     # токен зі scope insights
-IG_USER_ID=                          # me (IG-Login) або ig-business-account-id (FB-Login)
+IG_ACCESS_TOKEN=                     # token with instagram_business_manage_insights
+IG_USER_ID=me                        # or the ig-business-account-id
 IG_API_HOST=https://graph.instagram.com
-IG_GRAPH_VERSION=v21.0
-IG_OWNER_HANDLE=ваш_нік              # для UTM у футтері
-IG_REQUIRE_LIVE=1                    # у проді — без демо
+IG_OWNER_HANDLE=your_handle          # used for the footer UTM
+IG_REQUIRE_LIVE=1                    # production: never show demo data
 
-# OpenAI (AI-поради)
+# OpenAI (AI recommendations, script generator, Whisper transcripts)
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4.1
 ```
 
-### Як отримати `IG_ACCESS_TOKEN`
-Повна інструкція зі скриншотами — **[`docs/Instagram-Dashboard-Інструкція.pdf`](docs/Instagram-Dashboard-Інструкція.pdf)**.
-Коротко: акаунт має бути **Business/Creator** + прив'язаний до Facebook Page → на `developers.facebook.com` створи/активуй застосунок → додай дозволи `instagram_business_basic`, `instagram_business_manage_insights` → у **Graph API Explorer** згенеруй токен.
+> **You can manage the Instagram token and OpenAI key entirely from the UI** — open **⚙ Settings**, paste them, hit **Save**. They persist to the server's data volume.
 
-### AI-рекомендації
-Потрібен власний `OPENAI_API_KEY` (отримати на **platform.openai.com**). Без нього поради формуються офлайн (на правилах).
+### How to get the Instagram token
+Full picture guide: **[`docs/Instagram-Dashboard-Інструкція.pdf`](docs/Instagram-Dashboard-%D0%86%D0%BD%D1%81%D1%82%D1%80%D1%83%D0%BA%D1%86%D1%96%D1%8F.pdf)**.
+In short: a **Business/Creator** account linked to a Meta app → use case **“Manage messaging & content on Instagram”** → add permission `instagram_business_manage_insights` → generate an access token.
 
----
+### AI features (Whisper / Generator)
+Need a funded `OPENAI_API_KEY`. In **⚙ Settings → “Transcribe reels”** the app downloads each reel and transcribes it via OpenAI Whisper (stored on the data volume). After that, **Patterns**, **Scripts** and the **Generator** are powered by your real transcripts.
 
-## Деплой на сервер (Docker + Traefik)
+## Deploy (Docker + Traefik)
 
 ```bash
-# на сервері з Traefik (мережа maxico-platform_public, resolver "le"):
-git clone <repo-url> /opt/instagram-dashboard && cd /opt/instagram-dashboard
-cp .env.example .env && nano .env       # задай ADMIN_*, AUTH_SECRET, IG_*, OPENAI_*, IG_REQUIRE_LIVE=1
+git clone https://github.com/MaxICo-Agency/instagram-dashboard.git /opt/instagram-dashboard
+cd /opt/instagram-dashboard
+cp .env.example .env && nano .env     # ADMIN_*, AUTH_SECRET, IG_*, OPENAI_*, IG_REQUIRE_LIVE=1
 docker compose up -d --build
 ```
 
-`docker-compose.yml` уже містить Traefik-лейбли для `inst-dashbord.maxicolabs.com` (HTTPS + Let's Encrypt). Перед `up` переконайся, що **DNS A-запис субдомену вказує на сервер**. Свій домен — заміни Host(...) у `docker-compose.yml`.
+`docker-compose.yml` ships Traefik labels for `inst-dashbord.maxicolabs.com` (HTTPS via Let's Encrypt) and a named volume `data` (`/app/data`) for transcripts + saved config. Point your subdomain's DNS A-record at the server first; change the `Host(...)` label for your own domain.
+
+## Security
+
+- Every page and every `/api/*` route is behind **admin login** (signed cookie). Unauthenticated requests are redirected / return 401.
+- Secrets live only in `.env`/`.env.local` or the server data volume — **never committed** (`.gitignore` + a build guard).
+- `noindex` on all pages. Build runs `next build --webpack` (Turbopack panics on non-ASCII paths).
+
+## Notes
+
+- Data is cached 10 min; **Оновити** (or `POST /api/refresh`) busts it.
+- The **MaxICo Labs** footer is required on every page (a build guard fails the build if removed).
 
 ---
 
-## Примітки
-
-- `dev`/`build` використовують **webpack** (Turbopack падає на шляхах із не-ASCII символами). На латиничному шляху можна `next dev --turbopack`.
-- У Docker запінено **pnpm 9** (pnpm 10 блокує свіжі транзитивні залежності supply-chain політикою).
-- Кеш даних — 10 хв; кнопка **«Оновити»** скидає.
-- Секрети — лише в `.env.local`/`.env`, у git не потрапляють.
-- Футтер «Створено MaxICo Labs» — обов'язкова частина продукту (build-guard стежить за наявністю).
-
----
-
-<sub>Створено **[MaxICo Labs](https://maxicolabs.com/)** · performance-маркетинг UA/US · можемо розробити індивідуальне рішення — `all@maxico.agency`</sub>
+<sub>Built by **[MaxICo Labs](https://maxicolabs.com/)** · performance marketing UA/US · need a custom build? `all@maxico.agency`</sub>
