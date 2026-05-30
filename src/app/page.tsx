@@ -9,9 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const jar = await cookies();
-  if (!verifyToken(jar.get(SESSION_COOKIE)?.value)) {
-    redirect("/login");
-  }
+  if (!verifyToken(jar.get(SESSION_COOKIE)?.value)) redirect("/login");
 
   const b = await getDashboard();
   if (b.needsSetup || !b.data || !b.analytics || !b.signals) {
@@ -22,6 +20,7 @@ export default async function Page() {
       data={b.data}
       analytics={b.analytics}
       signals={b.signals}
+      patterns={b.patterns}
       recommendations={b.recommendations}
       demo={b.demo}
     />

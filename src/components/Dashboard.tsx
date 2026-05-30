@@ -2,44 +2,33 @@
 
 import { useState } from "react";
 import { formatNumber } from "@/lib/analytics";
+import type { Patterns } from "@/lib/patterns";
 import type { Analytics, DashboardData, Signals } from "@/lib/types";
 import {
-  BucketBars,
-  DistBars,
-  FollowerGrowth,
-  GainScatter,
-  MonthlyTrend,
-  SavesShares,
-  ViewsTrend,
-  WeekdayBars,
+  BucketBars, DistBars, FollowerGrowth, GainScatter, MonthlyTrend, SavesShares, ViewsTrend, WeekdayBars,
 } from "./charts";
 import { ReelsTable } from "./ReelsTable";
 import { RefreshButton } from "./RefreshButton";
 import { LogoutButton } from "./LogoutButton";
+import { Settings } from "./Settings";
+import { Generator } from "./Generator";
+import { PatternsView } from "./Patterns";
+import { Scripts } from "./Scripts";
 import { TopMediaList } from "./TopMediaList";
 import {
-  Card,
-  DemoBanner,
-  DemographicsBlocks,
-  Kpi,
-  MediaMiniList,
-  ProfileHeader,
-  Recommendations,
-  StatStrip,
+  Card, DemoBanner, DemographicsBlocks, Kpi, MediaMiniList, ProfileHeader, Recommendations, StatStrip,
 } from "./ui";
 
-const TABS = ["Огляд", "Публікації", "Підписники", "Інсайти", "Аудиторія", "AI-поради"] as const;
+const TABS = ["Огляд", "Публікації", "Підписники", "Інсайти", "Паттерни", "Скрипти", "Генератор", "Аудиторія", "AI-поради"] as const;
 type Tab = (typeof TABS)[number];
 
 export function Dashboard({
-  data,
-  analytics,
-  recommendations,
-  demo,
+  data, analytics, patterns, recommendations, demo,
 }: {
   data: DashboardData;
   analytics: Analytics;
   signals: Signals;
+  patterns: Patterns | null;
   recommendations: string;
   demo: boolean;
 }) {
@@ -59,6 +48,7 @@ export function Dashboard({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Settings />
           <RefreshButton />
           <LogoutButton />
         </div>
@@ -154,31 +144,29 @@ export function Dashboard({
               <TopMediaList media={analytics.topByER.slice(0, 8)} metric="er" />
             </Card>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Card title="Найбільше збережень">
-                <MediaMiniList media={analytics.topSaved} metric="saved" />
-              </Card>
-              <Card title="Найбільше поширень">
-                <MediaMiniList media={analytics.topShared} metric="shares" />
-              </Card>
+              <Card title="Найбільше збережень"><MediaMiniList media={analytics.topSaved} metric="saved" /></Card>
+              <Card title="Найбільше поширень"><MediaMiniList media={analytics.topShared} metric="shares" /></Card>
             </div>
           </div>
         )}
 
+        {tab === "Паттерни" && <PatternsView patterns={patterns} />}
+
+        {tab === "Скрипти" && <Scripts media={data.media} />}
+
+        {tab === "Генератор" && <Generator />}
+
         {tab === "Аудиторія" && (
           <>
-            <Card title="Демографія аудиторії">
-              <DemographicsBlocks demographics={data.demographics} />
-            </Card>
+            <Card title="Демографія аудиторії"><DemographicsBlocks demographics={data.demographics} /></Card>
             {data.demographics.age && (
-              <Card title="Вік аудиторії">
-                <BucketBars data={data.demographics.age} />
-              </Card>
+              <Card title="Вік аудиторії"><BucketBars data={data.demographics.age} /></Card>
             )}
           </>
         )}
 
         {tab === "AI-поради" && (
-          <Card title="AI-рекомендації" subtitle="на основі ваших метрик (потрібен робочий LLM-ключ для AI-наративу)">
+          <Card title="AI-рекомендації" subtitle="OpenAI на основі ваших метрик">
             <Recommendations markdown={recommendations} />
           </Card>
         )}

@@ -19,6 +19,8 @@ export interface IgMedia {
   permalink?: string;
   timestamp: string; // ISO
   thumbnailUrl?: string;
+  mediaUrl?: string; // video URL for transcription
+  transcript?: string;
   likeCount: number;
   commentsCount: number;
   reach?: number;
@@ -30,7 +32,7 @@ export interface IgMedia {
 }
 
 export interface FollowerDay {
-  date: string; // YYYY-MM-DD
+  date: string;
   followers: number;
   gained: number;
   reelPublished: boolean;
@@ -101,7 +103,6 @@ export interface Analytics {
   postsPerWeek: number;
 }
 
-// Compact subset handed to the LLM for recommendations.
 export interface Signals {
   followers: number;
   followerGrowth30d: number;

@@ -1,3 +1,4 @@
+import { loadTranscripts } from "./transcripts";
 import type { Bucket, DashboardData, Demographics, FollowerDay, IgMedia, IgProfile } from "./types";
 
 const HOST = process.env.IG_API_HOST || "https://graph.instagram.com";
@@ -53,9 +54,7 @@ async function followerSeriesSafe(media: IgMedia[]): Promise<FollowerDay[]> {
       period: "day",
     });
     const vals = r.data?.[0]?.values ?? [];
-    const reelDates = new Set(
-      media.filter((m) => m.mediaProductType === "REELS").map((m) => m.timestamp.slice(0, 10)),
-    );
+    const reelDates = new Set(media.filter((m) => m.mediaProductType === "REELS").map((m) => m.timestamp.slice(0, 10)));
     let prev = 0;
     return vals.map((v, i) => {
       const date = v.end_time.slice(0, 10);
@@ -69,56 +68,44 @@ async function followerSeriesSafe(media: IgMedia[]): Promise<FollowerDay[]> {
 }
 
 type DemoResult = { dimension_values: string[]; value: number };
-
 async function demographicBreakdown(breakdown: string): Promise<DemoResult[]> {
   try {
-    const r = await ig<{ data: { total_value?: { breakdowns?: { results: DemoResult[] }[] } }[] }>(
-      `${NODE}/insights`,
-      {
-        metric: "follower_demographics",
-        period: "lifetime",
-        metric_type: "total_value",
-        timeframe: "last_30_days",
-        breakdown,
-      },
-    );
+    const r = await ig<{ data: { total_value?: { breakdowns?: { results: DemoResult[] }[] } }[] }>(`${NODE}/insights`, {
+      metric: "follower_demographics",
+      period: "lifetime",
+      metric_type: "total_value",
+      timeframe: "last_30_days",
+      breakdown,
+    });
     return r.data?.[0]?.total_value?.breakdowns?.[0]?.results ?? [];
   } catch {
     return [];
   }
 }
-
 function toPct(results: DemoResult[], label: (k: string) => string, top?: number): Bucket[] {
   const total = results.reduce((a, x) => a + (x.value || 0), 0) || 1;
-  let buckets = results
+  let b = results
     .map((x) => ({ label: label(x.dimension_values[0] ?? "?"), value: Math.round((x.value / total) * 100), raw: x.value }))
     .sort((a, b) => b.raw - a.raw);
-  if (top) buckets = buckets.slice(0, top);
-  return buckets.map(({ label, value }) => ({ label, value }));
+  if (top) b = b.slice(0, top);
+  return b.map(({ label, value }) => ({ label, value }));
 }
-
 const GENDER_UA: Record<string, string> = { F: "Жінки", M: "Чоловіки", U: "Не вказано" };
 const COUNTRY_UA: Record<string, string> = {
   UA: "Україна", PL: "Польща", US: "США", DE: "Німеччина", GB: "Велика Британія",
   CA: "Канада", CZ: "Чехія", IT: "Італія", ES: "Іспанія", FR: "Франція", PT: "Португалія",
 };
-
 async function demographicsSafe(): Promise<Demographics> {
-  const [genderR, ageR, countryR, cityR] = await Promise.all([
-    demographicBreakdown("gender"),
-    demographicBreakdown("age"),
-    demographicBreakdown("country"),
-    demographicBreakdown("city"),
+  const [g, a, c, ci] = await Promise.all([
+    demographicBreakdown("gender"), demographicBreakdown("age"), demographicBreakdown("country"), demographicBreakdown("city"),
   ]);
-
-  // gender: show F/M as share of known (exclude U)
-  const known = genderR.filter((x) => x.dimension_values[0] === "F" || x.dimension_values[0] === "M");
-  const gender = known.length ? toPct(known, (k) => GENDER_UA[k] ?? k) : undefined;
-  const age = ageR.length ? toPct(ageR, (k) => k).sort((a, b) => a.label.localeCompare(b.label)) : undefined;
-  const country = countryR.length ? toPct(countryR, (k) => COUNTRY_UA[k] ?? k, 5) : undefined;
-  const cities = cityR.length ? toPct(cityR, (k) => (k.split(",")[0] || k), 5) : undefined;
-
-  return { gender, age, country, cities };
+  const known = g.filter((x) => x.dimension_values[0] === "F" || x.dimension_values[0] === "M");
+  return {
+    gender: known.length ? toPct(known, (k) => GENDER_UA[k] ?? k) : undefined,
+    age: a.length ? toPct(a, (k) => k).sort((x, y) => x.label.localeCompare(y.label)) : undefined,
+    country: c.length ? toPct(c, (k) => COUNTRY_UA[k] ?? k, 5) : undefined,
+    cities: ci.length ? toPct(ci, (k) => k.split(",")[0] || k, 5) : undefined,
+  };
 }
 
 export async function fetchLive(): Promise<DashboardData | null> {
@@ -154,18 +141,20 @@ export async function fetchLive(): Promise<DashboardData | null> {
         caption: m.caption as string | undefined,
         mediaType: String(m.media_type ?? ""),
         mediaProductType:
-          (m.media_product_type as IgMedia["mediaProductType"]) ||
-          (m.media_type as IgMedia["mediaProductType"]) ||
-          "FEED",
+          (m.media_product_type as IgMedia["mediaProductType"]) || (m.media_type as IgMedia["mediaProductType"]) || "FEED",
         permalink: m.permalink as string | undefined,
         timestamp: String(m.timestamp ?? new Date().toISOString()),
         thumbnailUrl: (m.thumbnail_url as string) || (m.media_url as string) || undefined,
+        mediaUrl: m.media_type === "VIDEO" ? (m.media_url as string) : undefined,
         likeCount: Number(m.like_count ?? 0),
         commentsCount: Number(m.comments_count ?? 0),
       };
       Object.assign(item, await mediaInsightsSafe(item.id));
       media.push(item);
     }
+
+    const transcripts = await loadTranscripts();
+    for (const m of media) if (transcripts[m.id]) m.transcript = transcripts[m.id];
 
     const [followerSeries, demographics] = await Promise.all([followerSeriesSafe(media), demographicsSafe()]);
 

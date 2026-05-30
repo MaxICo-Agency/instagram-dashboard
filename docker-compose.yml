@@ -5,6 +5,8 @@ services:
     container_name: inst-dashboard-app
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - data:/app/data
     networks:
       - public
     labels:
@@ -19,3 +21,6 @@ networks:
   public:
     external: true
     name: maxico-platform_public
+
+volumes:
+  data:
