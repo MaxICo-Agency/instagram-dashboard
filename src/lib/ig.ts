@@ -1,8 +1,5 @@
-import type { DashboardData, Demographics, FollowerDay, IgMedia, IgProfile } from "./types";
+import type { Bucket, DashboardData, Demographics, FollowerDay, IgMedia, IgProfile } from "./types";
 
-// Works with both connection types:
-//  - Instagram Login:  IG_API_HOST=https://graph.instagram.com, node = "me"
-//  - Facebook Login:   IG_API_HOST=https://graph.facebook.com, IG_USER_ID = <ig-business-account-id>
 const HOST = process.env.IG_API_HOST || "https://graph.instagram.com";
 const V = process.env.IG_GRAPH_VERSION || "v21.0";
 const TOKEN = process.env.IG_ACCESS_TOKEN || "";
@@ -71,6 +68,59 @@ async function followerSeriesSafe(media: IgMedia[]): Promise<FollowerDay[]> {
   }
 }
 
+type DemoResult = { dimension_values: string[]; value: number };
+
+async function demographicBreakdown(breakdown: string): Promise<DemoResult[]> {
+  try {
+    const r = await ig<{ data: { total_value?: { breakdowns?: { results: DemoResult[] }[] } }[] }>(
+      `${NODE}/insights`,
+      {
+        metric: "follower_demographics",
+        period: "lifetime",
+        metric_type: "total_value",
+        timeframe: "last_30_days",
+        breakdown,
+      },
+    );
+    return r.data?.[0]?.total_value?.breakdowns?.[0]?.results ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function toPct(results: DemoResult[], label: (k: string) => string, top?: number): Bucket[] {
+  const total = results.reduce((a, x) => a + (x.value || 0), 0) || 1;
+  let buckets = results
+    .map((x) => ({ label: label(x.dimension_values[0] ?? "?"), value: Math.round((x.value / total) * 100), raw: x.value }))
+    .sort((a, b) => b.raw - a.raw);
+  if (top) buckets = buckets.slice(0, top);
+  return buckets.map(({ label, value }) => ({ label, value }));
+}
+
+const GENDER_UA: Record<string, string> = { F: "Жінки", M: "Чоловіки", U: "Не вказано" };
+const COUNTRY_UA: Record<string, string> = {
+  UA: "Україна", PL: "Польща", US: "США", DE: "Німеччина", GB: "Велика Британія",
+  CA: "Канада", CZ: "Чехія", IT: "Італія", ES: "Іспанія", FR: "Франція", PT: "Португалія",
+};
+
+async function demographicsSafe(): Promise<Demographics> {
+  const [genderR, ageR, countryR, cityR] = await Promise.all([
+    demographicBreakdown("gender"),
+    demographicBreakdown("age"),
+    demographicBreakdown("country"),
+    demographicBreakdown("city"),
+  ]);
+
+  // gender: show F/M as share of known (exclude U)
+  const known = genderR.filter((x) => x.dimension_values[0] === "F" || x.dimension_values[0] === "M");
+  const gender = known.length ? toPct(known, (k) => GENDER_UA[k] ?? k) : undefined;
+  const age = ageR.length ? toPct(ageR, (k) => k).sort((a, b) => a.label.localeCompare(b.label)) : undefined;
+  const country = countryR.length ? toPct(countryR, (k) => COUNTRY_UA[k] ?? k, 5) : undefined;
+  const cities = cityR.length ? toPct(cityR, (k) => (k.split(",")[0] || k), 5) : undefined;
+
+  return { gender, age, country, cities };
+}
+
 export async function fetchLive(): Promise<DashboardData | null> {
   lastError = null;
   if (!TOKEN) {
@@ -117,8 +167,7 @@ export async function fetchLive(): Promise<DashboardData | null> {
       media.push(item);
     }
 
-    const followerSeries = await followerSeriesSafe(media);
-    const demographics: Demographics = {};
+    const [followerSeries, demographics] = await Promise.all([followerSeriesSafe(media), demographicsSafe()]);
 
     return {
       live: true,

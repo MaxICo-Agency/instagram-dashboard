@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { er, formatNumber } from "@/lib/analytics";
+import { formatNumber } from "@/lib/analytics";
 import type { Analytics, DashboardData, Signals } from "@/lib/types";
 import {
   BucketBars,
   DistBars,
   FollowerGrowth,
   GainScatter,
-  HBars,
   MonthlyTrend,
   SavesShares,
   ViewsTrend,
@@ -17,6 +16,7 @@ import {
 import { ReelsTable } from "./ReelsTable";
 import { RefreshButton } from "./RefreshButton";
 import { LogoutButton } from "./LogoutButton";
+import { TopMediaList } from "./TopMediaList";
 import {
   Card,
   DemoBanner,
@@ -30,8 +30,6 @@ import {
 
 const TABS = ["Огляд", "Публікації", "Підписники", "Інсайти", "Аудиторія", "AI-поради"] as const;
 type Tab = (typeof TABS)[number];
-
-const cap = (s: string | undefined, n = 30) => (!s ? "—" : s.length > n ? s.slice(0, n) + "…" : s);
 
 export function Dashboard({
   data,
@@ -47,9 +45,6 @@ export function Dashboard({
 }) {
   const [tab, setTab] = useState<Tab>("Огляд");
   const k = analytics.kpis;
-
-  const topViews = analytics.topByViews.slice(0, 12).map((m) => ({ label: cap(m.caption, 26), value: m.views ?? 0 }));
-  const topER = analytics.topByER.slice(0, 12).map((m) => ({ label: cap(m.caption, 26), value: Number(er(m).toFixed(1)) }));
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
@@ -111,8 +106,8 @@ export function Dashboard({
               <Card title="Перегляди в часі" subtitle="по публікаціях + сер. за 5" className="lg:col-span-2">
                 <ViewsTrend data={analytics.viewsTrend} />
               </Card>
-              <Card title="Топ за переглядами">
-                <HBars data={topViews} color="#5b8cff" height={300} />
+              <Card title="Топ за переглядами" subtitle="клік — відкрити пост">
+                <TopMediaList media={analytics.topByViews.slice(0, 8)} metric="views" />
               </Card>
             </div>
           </>
@@ -155,8 +150,8 @@ export function Dashboard({
             <Card title="Розподіл за переглядами">
               <DistBars data={analytics.distribution} />
             </Card>
-            <Card title="Топ за ER%">
-              <HBars data={topER} color="#b8f700" height={300} />
+            <Card title="Топ за ER%" subtitle="клік — відкрити пост">
+              <TopMediaList media={analytics.topByER.slice(0, 8)} metric="er" />
             </Card>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Card title="Найбільше збережень">
@@ -183,7 +178,7 @@ export function Dashboard({
         )}
 
         {tab === "AI-поради" && (
-          <Card title="AI-рекомендації" subtitle="OpenAI gpt-4.1 на основі ваших метрик">
+          <Card title="AI-рекомендації" subtitle="на основі ваших метрик (потрібен робочий LLM-ключ для AI-наративу)">
             <Recommendations markdown={recommendations} />
           </Card>
         )}
