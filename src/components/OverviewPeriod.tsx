@@ -43,12 +43,8 @@ function Delta({ cur, prev }: { cur: number; prev?: number }) {
 }
 
 export function OverviewPeriod({ media }: { media: IgMedia[] }) {
-  // Smart default: tightest standard window that actually contains posts, else "all".
-  const [days, setDays] = useState<number>(() => {
-    const now = Date.now();
-    const has = (d: number) => media.some((m) => +new Date(m.timestamp) >= now - d * 864e5);
-    return has(7) ? 7 : has(30) ? 30 : has(90) ? 90 : 0;
-  });
+  // Default to "Весь час" (all time) — show the overall picture first; period buttons add comparison.
+  const [days, setDays] = useState<number>(0);
 
   const now = Date.now();
   const cur = days ? agg(media, now - days * 864e5, now + 1) : agg(media, 0, now + 1);
