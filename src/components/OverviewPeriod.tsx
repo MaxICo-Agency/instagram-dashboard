@@ -43,7 +43,13 @@ function Delta({ cur, prev }: { cur: number; prev?: number }) {
 }
 
 export function OverviewPeriod({ media }: { media: IgMedia[] }) {
-  const [days, setDays] = useState(30);
+  // Smart default: tightest standard window that actually contains posts, else "all".
+  const [days, setDays] = useState<number>(() => {
+    const now = Date.now();
+    const has = (d: number) => media.some((m) => +new Date(m.timestamp) >= now - d * 864e5);
+    return has(7) ? 7 : has(30) ? 30 : has(90) ? 90 : 0;
+  });
+
   const now = Date.now();
   const cur = days ? agg(media, now - days * 864e5, now + 1) : agg(media, 0, now + 1);
   const prev = days ? agg(media, now - 2 * days * 864e5, now - days * 864e5) : null;
@@ -72,15 +78,22 @@ export function OverviewPeriod({ media }: { media: IgMedia[] }) {
         ))}
         {prev && <span className="ml-1 text-xs text-muted">порівняння з попереднім періодом</span>}
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {cards.map((c) => (
-          <div key={c.label} className="rounded-2xl border border-line bg-surface/70 p-4 backdrop-blur">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted">{c.label}</div>
-            <div className="mt-1.5 text-2xl font-bold text-white">{c.fmt(c.cur)}</div>
-            <Delta cur={c.cur} prev={c.prev} />
-          </div>
-        ))}
-      </div>
+
+      {cur.posts === 0 ? (
+        <div className="rounded-2xl border border-line bg-surface/70 p-5 text-sm text-muted">
+          За цей період публікацій немає — обери ширший період (напр. <span className="text-maxico-lime">90 днів</span> або <span className="text-maxico-lime">Весь час</span>).
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {cards.map((c) => (
+            <div key={c.label} className="rounded-2xl border border-line bg-surface/70 p-4 backdrop-blur">
+              <div className="text-[11px] font-medium uppercase tracking-wide text-muted">{c.label}</div>
+              <div className="mt-1.5 text-2xl font-bold text-white">{c.fmt(c.cur)}</div>
+              <Delta cur={c.cur} prev={c.prev} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

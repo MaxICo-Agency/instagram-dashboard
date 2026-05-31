@@ -44,21 +44,29 @@ async function mediaInsightsSafe(cfg: AppConfig, id: string): Promise<Partial<Ig
   }
 }
 
-async function followerSeriesSafe(cfg: AppConfig, node: string, media: IgMedia[]): Promise<FollowerDay[]> {
+// follower_count (period=day) returns DAILY NEW followers. We request a 30-day
+// range and rebuild the cumulative line ending at the current total.
+async function followerSeriesSafe(cfg: AppConfig, node: string, media: IgMedia[], currentFollowers: number): Promise<FollowerDay[]> {
   try {
+    const until = Math.floor(Date.now() / 1000);
+    const since = until - 30 * 86400;
     const r = await igFetch<{ data: { values: { value: number; end_time: string }[] }[] }>(cfg, `${node}/insights`, {
       metric: "follower_count",
       period: "day",
+      since: String(since),
+      until: String(until),
     });
     const vals = r.data?.[0]?.values ?? [];
     const reelDates = new Set(media.filter((m) => m.mediaProductType === "REELS").map((m) => m.timestamp.slice(0, 10)));
-    let prev = 0;
-    return vals.map((v, i) => {
-      const date = v.end_time.slice(0, 10);
-      const gained = i === 0 ? 0 : v.value - prev;
-      prev = v.value;
-      return { date, followers: v.value, gained, reelPublished: reelDates.has(date) };
-    });
+    const out: FollowerDay[] = [];
+    let totalAfter = 0;
+    for (let i = vals.length - 1; i >= 0; i--) {
+      const date = vals[i].end_time.slice(0, 10);
+      const gained = vals[i].value || 0;
+      out.unshift({ date, followers: currentFollowers - totalAfter, gained, reelPublished: reelDates.has(date) });
+      totalAfter += gained;
+    }
+    return out;
   } catch {
     return [];
   }
@@ -132,7 +140,7 @@ export async function fetchLive(): Promise<DashboardData | null> {
     const mediaRes = await igFetch<{ data: Record<string, unknown>[] }>(cfg, `${node}/media`, {
       fields:
         "id,caption,media_type,media_product_type,permalink,timestamp,thumbnail_url,media_url,like_count,comments_count",
-      limit: "30",
+      limit: "50",
     });
     const media: IgMedia[] = (mediaRes.data || []).map((m) => ({
       id: String(m.id),
@@ -148,10 +156,9 @@ export async function fetchLive(): Promise<DashboardData | null> {
       commentsCount: Number(m.comments_count ?? 0),
     }));
 
-    // Parallel: per-media insights + follower series + demographics + transcripts (big speed win).
     const [, followerSeries, demographics, transcripts] = await Promise.all([
       Promise.all(media.map(async (it) => Object.assign(it, await mediaInsightsSafe(cfg, it.id)))),
-      followerSeriesSafe(cfg, node, media),
+      followerSeriesSafe(cfg, node, media, profile.followersCount),
       demographicsSafe(cfg, node),
       loadTranscripts(),
     ]);
